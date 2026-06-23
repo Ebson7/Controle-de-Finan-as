@@ -1,0 +1,6 @@
+{
+  "name": "Finanças Pessoais",
+  "description": "Aplicativo completo de finanças pessoais com controle de gastos, sincronização com banco de dados persistente, consultas estruturadas de registros e exportação mensal para PDF.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
