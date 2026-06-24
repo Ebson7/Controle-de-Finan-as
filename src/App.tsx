@@ -9,12 +9,13 @@ import {
   Coins,
   DollarSign
 } from "lucide-react";
-import { Transaction, Bill, CategoryBudget } from "./types";
+import { Transaction, Bill, CategoryBudget, User } from "./types";
 import Dashboard from "./components/Dashboard";
 import TransactionsManager from "./components/TransactionsManager";
 import BillsManager from "./components/BillsManager";
 import BudgetPlanner from "./components/BudgetPlanner";
 import DatabaseQuery from "./components/DatabaseQuery";
+import Login from "./components/Login";
 
 // Default starter data
 const DEFAULT_TRANSACTIONS: Transaction[] = [
@@ -41,6 +42,10 @@ const DEFAULT_CATEGORY_BUDGETS: CategoryBudget[] = [
 export default function App() {
   const [activeTab, setActiveTab] = useState<"dashboard" | "transactions" | "bills" | "budget" | "db_query">("dashboard");
   
+  // User Authentication State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [userLoaded, setUserLoaded] = useState(false);
+
   // App states
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
@@ -54,22 +59,41 @@ export default function App() {
     monthlyBudget?: number;
     categoryBudgets?: CategoryBudget[];
   }) => {
+    if (!currentUser) return;
     try {
       await fetch("/api/db/sync", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updatedData)
+        body: JSON.stringify({
+          ...updatedData,
+          userId: currentUser.id
+        })
       });
     } catch (err) {
       console.error("Erro ao sincronizar com o banco de dados:", err);
     }
   };
 
-  // Load from server database on mount, with a robust localStorage replica fallback
+  // Restore user session on mount
   useEffect(() => {
+    const storedUser = localStorage.getItem("fin_user");
+    if (storedUser) {
+      try {
+        setCurrentUser(JSON.parse(storedUser));
+      } catch (err) {
+        console.error("Erro ao carregar usuário salvo:", err);
+      }
+    }
+    setUserLoaded(true);
+  }, []);
+
+  // Load from server database specifically for this user
+  useEffect(() => {
+    if (!userLoaded || !currentUser) return;
+
     const loadFromDatabase = async () => {
       try {
-        const response = await fetch("/api/db");
+        const response = await fetch(`/api/db?userId=${currentUser.id}`);
         if (!response.ok) throw new Error("Database offline");
         const data = await response.json();
         
@@ -79,73 +103,91 @@ export default function App() {
         if (data.categoryBudgets) setCategoryBudgets(data.categoryBudgets);
 
         // Keep local storage warm as an immediate cache/replica
-        localStorage.setItem("fin_transactions", JSON.stringify(data.transactions || []));
-        localStorage.setItem("fin_bills", JSON.stringify(data.bills || []));
-        localStorage.setItem("fin_monthly_budget", String(data.monthlyBudget ?? 3000));
-        localStorage.setItem("fin_category_budgets", JSON.stringify(data.categoryBudgets || []));
+        localStorage.setItem(`fin_transactions_${currentUser.id}`, JSON.stringify(data.transactions || []));
+        localStorage.setItem(`fin_bills_${currentUser.id}`, JSON.stringify(data.bills || []));
+        localStorage.setItem(`fin_monthly_budget_${currentUser.id}`, String(data.monthlyBudget ?? 3000));
+        localStorage.setItem(`fin_category_budgets_${currentUser.id}`, JSON.stringify(data.categoryBudgets || []));
       } catch (err) {
         console.warn("Could not connect to database server. Falling back to local offline cache.");
-        const storedTransactions = localStorage.getItem("fin_transactions");
-        const storedBills = localStorage.getItem("fin_bills");
-        const storedBudget = localStorage.getItem("fin_monthly_budget");
-        const storedCatBudgets = localStorage.getItem("fin_category_budgets");
+        const storedTransactions = localStorage.getItem(`fin_transactions_${currentUser.id}`);
+        const storedBills = localStorage.getItem(`fin_bills_${currentUser.id}`);
+        const storedBudget = localStorage.getItem(`fin_monthly_budget_${currentUser.id}`);
+        const storedCatBudgets = localStorage.getItem(`fin_category_budgets_${currentUser.id}`);
 
         if (storedTransactions) {
           setTransactions(JSON.parse(storedTransactions));
         } else {
           setTransactions(DEFAULT_TRANSACTIONS);
-          localStorage.setItem("fin_transactions", JSON.stringify(DEFAULT_TRANSACTIONS));
+          localStorage.setItem(`fin_transactions_${currentUser.id}`, JSON.stringify(DEFAULT_TRANSACTIONS));
         }
 
         if (storedBills) {
           setBills(JSON.parse(storedBills));
         } else {
           setBills(DEFAULT_BILLS);
-          localStorage.setItem("fin_bills", JSON.stringify(DEFAULT_BILLS));
+          localStorage.setItem(`fin_bills_${currentUser.id}`, JSON.stringify(DEFAULT_BILLS));
         }
 
         if (storedBudget) {
           setMonthlyBudget(parseFloat(storedBudget));
         } else {
           setMonthlyBudget(3000);
-          localStorage.setItem("fin_monthly_budget", "3000");
+          localStorage.setItem(`fin_monthly_budget_${currentUser.id}`, "3000");
         }
 
         if (storedCatBudgets) {
           setCategoryBudgets(JSON.parse(storedCatBudgets));
         } else {
           setCategoryBudgets(DEFAULT_CATEGORY_BUDGETS);
-          localStorage.setItem("fin_category_budgets", JSON.stringify(DEFAULT_CATEGORY_BUDGETS));
+          localStorage.setItem(`fin_category_budgets_${currentUser.id}`, JSON.stringify(DEFAULT_CATEGORY_BUDGETS));
         }
       }
     };
 
     loadFromDatabase();
-  }, []);
+  }, [currentUser, userLoaded]);
 
   // Save states to local storage and push synchronously to server
   const saveTransactions = (newTransactions: Transaction[]) => {
     setTransactions(newTransactions);
-    localStorage.setItem("fin_transactions", JSON.stringify(newTransactions));
-    syncWithDatabase({ transactions: newTransactions });
+    if (currentUser) {
+      localStorage.setItem(`fin_transactions_${currentUser.id}`, JSON.stringify(newTransactions));
+      syncWithDatabase({ transactions: newTransactions });
+    }
   };
 
   const saveBills = (newBills: Bill[]) => {
     setBills(newBills);
-    localStorage.setItem("fin_bills", JSON.stringify(newBills));
-    syncWithDatabase({ bills: newBills });
+    if (currentUser) {
+      localStorage.setItem(`fin_bills_${currentUser.id}`, JSON.stringify(newBills));
+      syncWithDatabase({ bills: newBills });
+    }
   };
 
   const saveMonthlyBudget = (budget: number) => {
     setMonthlyBudget(budget);
-    localStorage.setItem("fin_monthly_budget", budget.toString());
-    syncWithDatabase({ monthlyBudget: budget });
+    if (currentUser) {
+      localStorage.setItem(`fin_monthly_budget_${currentUser.id}`, budget.toString());
+      syncWithDatabase({ monthlyBudget: budget });
+    }
   };
 
   const saveCategoryBudgets = (catBudgets: CategoryBudget[]) => {
     setCategoryBudgets(catBudgets);
-    localStorage.setItem("fin_category_budgets", JSON.stringify(catBudgets));
-    syncWithDatabase({ categoryBudgets: catBudgets });
+    if (currentUser) {
+      localStorage.setItem(`fin_category_budgets_${currentUser.id}`, JSON.stringify(catBudgets));
+      syncWithDatabase({ categoryBudgets: catBudgets });
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("fin_user");
+    setCurrentUser(null);
+    setTransactions([]);
+    setBills([]);
+    setMonthlyBudget(3000);
+    setCategoryBudgets([]);
+    setActiveTab("dashboard");
   };
 
   // State manipulation handlers
@@ -231,6 +273,28 @@ export default function App() {
     saveCategoryBudgets(categoryBudgets.filter(cb => cb.category !== category));
   };
 
+  if (!userLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          <span className="text-xs text-slate-400 font-bold tracking-wider">Iniciando Banco de Dados...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <Login 
+        onLoginSuccess={(user) => {
+          localStorage.setItem("fin_user", JSON.stringify(user));
+          setCurrentUser(user);
+        }} 
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans relative overflow-x-hidden">
       {/* Mesh Gradient Background Blobs */}
@@ -247,17 +311,23 @@ export default function App() {
             </div>
             <div>
               <h1 className="font-extrabold text-lg text-white tracking-tight leading-none">
-                Finança<span className="text-blue-400">Pro</span>
+                Finance <span className="text-blue-400">BRU</span>
               </h1>
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Persistência Centralizada</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex flex-col text-right">
-              <span className="text-[9px] font-semibold text-slate-400">Banco de Dados Ativo</span>
-              <span className="text-xs font-bold text-emerald-400">ebsonsilva7@gmail.com</span>
+              <span className="text-[9px] font-semibold text-slate-400">Logado como {currentUser.name}</span>
+              <span className="text-xs font-bold text-emerald-400 max-w-[120px] sm:max-w-none truncate">{currentUser.email}</span>
             </div>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 hover:border-rose-500/30 text-rose-400 text-xs font-bold rounded-xl transition-all active:scale-95 cursor-pointer"
+            >
+              Sair
+            </button>
           </div>
         </div>
       </header>
@@ -342,6 +412,7 @@ export default function App() {
                 transactions={transactions} 
                 bills={bills} 
                 monthlyBudget={monthlyBudget} 
+                userEmail={currentUser.email}
               />
             )}
 
@@ -436,7 +507,7 @@ export default function App() {
       {/* Footer */}
       <footer className="bg-white/5 backdrop-blur-md border-t border-white/10 py-6 mt-12 relative z-10 hidden sm:block">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400 text-xs font-semibold">
-          <p>© {new Date().getFullYear()} FinançaPro. Todos os direitos reservados. Sincronizado com Banco de Dados Persistente.</p>
+          <p>© {new Date().getFullYear()} Finance BRU. Todos os direitos reservados. Sincronizado com Banco de Dados Persistente.</p>
           <div className="flex items-center gap-4">
             <span className="hover:text-white cursor-pointer transition-colors">Privacidade</span>
             <span className="hover:text-white cursor-pointer transition-colors">Termos de Uso</span>

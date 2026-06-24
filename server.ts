@@ -17,25 +17,30 @@ app.use(express.json());
 const DB_FILE = path.join(process.cwd(), "database.json");
 
 const DEFAULT_DB = {
+  users: [
+    { id: "u1", name: "User Admin", email: "ebsonsilva7@gmail.com", passwordHash: "123456", createdAt: new Date().toISOString() }
+  ],
   transactions: [
-    { id: "t1", description: "Salário Mensal", amount: 5500.00, type: "income", category: "Salário", date: new Date().toISOString().split('T')[0] },
-    { id: "t2", description: "Supermercado Carrefour", amount: 480.50, type: "expense", category: "Alimentação", date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
-    { id: "t3", description: "Posto Shell Combustível", amount: 180.00, type: "expense", category: "Transporte", date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
-    { id: "t4", description: "Jantar Pizzaria", amount: 120.00, type: "expense", category: "Lazer", date: new Date().toISOString().split('T')[0] },
-    { id: "t5", description: "Internet Banda Larga", amount: 120.00, type: "expense", category: "Moradia", date: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0] }
+    { id: "t1", userId: "u1", description: "Salário Mensal", amount: 5500.00, type: "income", category: "Salário", date: new Date().toISOString().split('T')[0] },
+    { id: "t2", userId: "u1", description: "Supermercado Carrefour", amount: 480.50, type: "expense", category: "Alimentação", date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+    { id: "t3", userId: "u1", description: "Posto Shell Combustível", amount: 180.00, type: "expense", category: "Transporte", date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
+    { id: "t4", userId: "u1", description: "Jantar Pizzaria", amount: 120.00, type: "expense", category: "Lazer", date: new Date().toISOString().split('T')[0] },
+    { id: "t5", userId: "u1", description: "Internet Banda Larga", amount: 120.00, type: "expense", category: "Moradia", date: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0] }
   ],
   bills: [
-    { id: "b1", name: "Aluguel", amount: 1500.00, dueDate: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0], paid: false, recurring: true },
-    { id: "b2", name: "Conta de Energia Coelba", amount: 220.50, dueDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], paid: false, recurring: true },
-    { id: "b3", name: "Assinatura Netflix", amount: 55.90, dueDate: new Date(Date.now() + 86400000 * 12).toISOString().split('T')[0], paid: false, recurring: true },
-    { id: "b4", name: "Internet Banda Larga", amount: 120.00, dueDate: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0], paid: true, recurring: true }
+    { id: "b1", userId: "u1", name: "Aluguel", amount: 1500.00, dueDate: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0], paid: false, recurring: true },
+    { id: "b2", userId: "u1", name: "Conta de Energia Coelba", amount: 220.50, dueDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], paid: false, recurring: true },
+    { id: "b3", userId: "u1", name: "Assinatura Netflix", amount: 55.90, dueDate: new Date(Date.now() + 86400000 * 12).toISOString().split('T')[0], paid: false, recurring: true },
+    { id: "b4", userId: "u1", name: "Internet Banda Larga", amount: 120.00, dueDate: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0], paid: true, recurring: true }
   ],
   monthlyBudget: 3000,
   categoryBudgets: [
     { category: "Alimentação", limit: 800 },
     { category: "Transporte", limit: 400 },
     { category: "Lazer", limit: 500 }
-  ]
+  ],
+  userBudgets: {} as Record<string, number>,
+  userCategoryBudgets: {} as Record<string, any[]>
 };
 
 function readDatabase() {
@@ -45,7 +50,12 @@ function readDatabase() {
       return DEFAULT_DB;
     }
     const content = fs.readFileSync(DB_FILE, "utf-8");
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+    // Ensure users array always exists
+    if (!parsed.users) {
+      parsed.users = [...DEFAULT_DB.users];
+    }
+    return parsed;
   } catch (err) {
     console.error("Erro ao ler banco de dados JSON:", err);
     return DEFAULT_DB;
@@ -62,25 +72,156 @@ function writeDatabase(data: any) {
   }
 }
 
+// Authentication Endpoints
+app.post("/api/auth/register", (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "Todos os campos (nome, email, senha) são obrigatórios." });
+    }
+
+    const dbData = readDatabase();
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existingUser = dbData.users.find((u: any) => u.email.toLowerCase().trim() === normalizedEmail);
+    if (existingUser) {
+      return res.status(400).json({ error: "Este email já está cadastrado no banco de dados." });
+    }
+
+    const newUser = {
+      id: "u_" + Date.now(),
+      name,
+      email: normalizedEmail,
+      passwordHash: password, // For simplicity and visibility in standard query console as requested
+      createdAt: new Date().toISOString()
+    };
+
+    dbData.users.push(newUser);
+    writeDatabase(dbData);
+
+    res.json({
+      success: true,
+      message: "Usuário registrado com sucesso na base de dados!",
+      user: {
+        id: newUser.id,
+        name: newUser.name,
+        email: newUser.email,
+        createdAt: newUser.createdAt
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Erro ao registrar usuário: " + err.message });
+  }
+});
+
+app.post("/api/auth/login", (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email e senha são obrigatórios." });
+    }
+
+    const dbData = readDatabase();
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user = dbData.users.find((u: any) => u.email.toLowerCase().trim() === normalizedEmail);
+    if (!user || user.passwordHash !== password) {
+      return res.status(401).json({ error: "Credenciais inválidas. Verifique seu email e senha." });
+    }
+
+    res.json({
+      success: true,
+      message: "Autenticação realizada com sucesso!",
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        createdAt: user.createdAt
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Erro ao autenticar usuário: " + err.message });
+  }
+});
+
 // Database Sync Endpoints
 app.get("/api/db", (req, res) => {
   const dbData = readDatabase();
-  res.json(dbData);
+  const { userId } = req.query;
+
+  if (userId) {
+    const uid = String(userId);
+    // Filter transactions and bills specifically for this user
+    // For transactions without userId or created before, associate them with 'u1' (admin)
+    const transactions = dbData.transactions.filter((t: any) => t.userId === uid || (!t.userId && uid === "u1"));
+    const bills = dbData.bills.filter((b: any) => b.userId === uid || (!b.userId && uid === "u1"));
+
+    // User-specific budgets with global fallback
+    const userBudget = dbData.userBudgets && dbData.userBudgets[uid] !== undefined
+      ? dbData.userBudgets[uid]
+      : dbData.monthlyBudget;
+
+    const userCategoryBudgets = dbData.userCategoryBudgets && dbData.userCategoryBudgets[uid] !== undefined
+      ? dbData.userCategoryBudgets[uid]
+      : dbData.categoryBudgets;
+
+    res.json({
+      transactions,
+      bills,
+      monthlyBudget: userBudget,
+      categoryBudgets: userCategoryBudgets,
+      users: dbData.users || []
+    });
+  } else {
+    res.json(dbData);
+  }
 });
 
 app.post("/api/db/sync", (req, res) => {
   try {
-    const { transactions, bills, monthlyBudget, categoryBudgets } = req.body;
+    const { transactions, bills, monthlyBudget, categoryBudgets, userId } = req.body;
     const currentDb = readDatabase();
     
-    const updatedDb = {
-      transactions: transactions !== undefined ? transactions : currentDb.transactions,
-      bills: bills !== undefined ? bills : currentDb.bills,
-      monthlyBudget: monthlyBudget !== undefined ? monthlyBudget : currentDb.monthlyBudget,
-      categoryBudgets: categoryBudgets !== undefined ? categoryBudgets : currentDb.categoryBudgets,
-    };
+    if (userId) {
+      const uid = String(userId);
 
-    writeDatabase(updatedDb);
+      // Filter and preserve other users' transactions, overwrite current user's
+      const otherTransactions = currentDb.transactions.filter((t: any) => t.userId !== uid && (t.userId || uid !== "u1"));
+      const updatedTransactions = transactions !== undefined 
+        ? [...otherTransactions, ...transactions.map((t: any) => ({ ...t, userId: uid }))]
+        : currentDb.transactions;
+
+      // Filter and preserve other users' bills, overwrite current user's
+      const otherBills = currentDb.bills.filter((b: any) => b.userId !== uid && (b.userId || uid !== "u1"));
+      const updatedBills = bills !== undefined 
+        ? [...otherBills, ...bills.map((b: any) => ({ ...b, userId: uid }))]
+        : currentDb.bills;
+
+      // Initialize helper objects if they don't exist
+      if (!currentDb.userBudgets) currentDb.userBudgets = {};
+      if (!currentDb.userCategoryBudgets) currentDb.userCategoryBudgets = {};
+
+      if (monthlyBudget !== undefined) currentDb.userBudgets[uid] = monthlyBudget;
+      if (categoryBudgets !== undefined) currentDb.userCategoryBudgets[uid] = categoryBudgets;
+
+      const updatedDb = {
+        ...currentDb,
+        transactions: updatedTransactions,
+        bills: updatedBills,
+      };
+
+      writeDatabase(updatedDb);
+    } else {
+      const updatedDb = {
+        ...currentDb,
+        transactions: transactions !== undefined ? transactions : currentDb.transactions,
+        bills: bills !== undefined ? bills : currentDb.bills,
+        monthlyBudget: monthlyBudget !== undefined ? monthlyBudget : currentDb.monthlyBudget,
+        categoryBudgets: categoryBudgets !== undefined ? categoryBudgets : currentDb.categoryBudgets,
+      };
+      writeDatabase(updatedDb);
+    }
+
     res.json({ success: true, message: "Banco de dados sincronizado com sucesso!" });
   } catch (err: any) {
     res.status(500).json({ error: "Erro ao sincronizar banco de dados: " + err.message });
@@ -106,7 +247,8 @@ app.get("/api/db/query", (req, res) => {
 
     let results: any = {
       transactions: [...dbData.transactions],
-      bills: [...dbData.bills]
+      bills: [...dbData.bills],
+      users: [...(dbData.users || [])]
     };
 
     // Filter transactions
@@ -157,6 +299,18 @@ app.get("/api/db/query", (req, res) => {
       results.bills = [];
     }
 
+    // Filter users
+    if (targetTable === "users" || !targetTable || targetTable === "all") {
+      let us = [...(dbData.users || [])];
+      if (search) {
+        const s = String(search).toLowerCase();
+        us = us.filter(u => u.name.toLowerCase().includes(s) || u.email.toLowerCase().includes(s));
+      }
+      results.users = us;
+    } else {
+      results.users = [];
+    }
+
     const queryTimeMs = Date.now() - startTime;
 
     res.json({
@@ -164,11 +318,19 @@ app.get("/api/db/query", (req, res) => {
       meta: {
         timestamp: new Date().toISOString(),
         queryTimeMs,
-        rowsScanned: dbData.transactions.length + dbData.bills.length,
-        rowsReturned: results.transactions.length + results.bills.length,
+        rowsScanned: dbData.transactions.length + dbData.bills.length + (dbData.users || []).length,
+        rowsReturned: results.transactions.length + results.bills.length + (results.users || []).length,
         schema: {
+          users: {
+            id: "TEXT (PRIMARY KEY)",
+            name: "TEXT",
+            email: "TEXT (UNIQUE)",
+            passwordHash: "TEXT",
+            createdAt: "TEXT (YYYY-MM-DDTHH:MM:SSZ)"
+          },
           transactions: {
             id: "TEXT (PRIMARY KEY)",
+            userId: "TEXT (FOREIGN KEY TO users.id)",
             description: "TEXT",
             amount: "REAL",
             type: "TEXT (income | expense)",
@@ -177,6 +339,7 @@ app.get("/api/db/query", (req, res) => {
           },
           bills: {
             id: "TEXT (PRIMARY KEY)",
+            userId: "TEXT (FOREIGN KEY TO users.id)",
             name: "TEXT",
             amount: "REAL",
             dueDate: "TEXT (YYYY-MM-DD)",

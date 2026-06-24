@@ -38,7 +38,7 @@ export function exportMonthlyReportToPDF(
   doc.setTextColor(255, 255, 255);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(22);
-  doc.text("FinançaPro", 15, 20);
+  doc.text("Finance BRU", 15, 20);
   
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
@@ -219,10 +219,10 @@ export function exportMonthlyReportToPDF(
   if (finalPageY < 270) {
     doc.setFontSize(8);
     doc.setTextColor(156, 163, 175);
-    doc.text("Este documento foi gerado de forma segura e autônoma pelo FinançaPro.", 15, finalPageY);
+    doc.text("Este documento foi gerado de forma segura e autônoma pelo Finance BRU.", 15, finalPageY);
     doc.text("A veracidade das informações apresentadas é de responsabilidade da base de dados persistente vinculada.", 15, finalPageY + 4);
   }
 
   // Save/Download PDF
-  doc.save(`FinancaPro_Relatorio_${currentMonthName}_${currentYear}.pdf`);
+  doc.save(`FinanceBRU_Relatorio_${currentMonthName}_${currentYear}.pdf`);
 }

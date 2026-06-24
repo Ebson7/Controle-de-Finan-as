@@ -30,9 +30,10 @@ interface DashboardProps {
   transactions: Transaction[];
   bills: Bill[];
   monthlyBudget: number;
+  userEmail?: string;
 }
 
-export default function Dashboard({ transactions, bills, monthlyBudget }: DashboardProps) {
+export default function Dashboard({ transactions, bills, monthlyBudget, userEmail }: DashboardProps) {
   // Calculations
   const totalIncome = transactions
     .filter(t => t.type === "income")
@@ -94,7 +95,7 @@ export default function Dashboard({ transactions, bills, monthlyBudget }: Dashbo
           <p className="text-sm text-slate-400">Resumo visual de suas finanças e despesas recentes</p>
         </div>
         <button
-          onClick={() => exportMonthlyReportToPDF(transactions, bills, monthlyBudget)}
+          onClick={() => exportMonthlyReportToPDF(transactions, bills, monthlyBudget, userEmail)}
           className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-extrabold rounded-2xl shadow-lg shadow-blue-500/10 transition-all active:scale-95 cursor-pointer self-stretch sm:self-auto"
         >
           <FileDown className="h-4 w-4 text-blue-200" />

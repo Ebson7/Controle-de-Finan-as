@@ -21,6 +21,13 @@ export interface CategoryBudget {
   limit: number;
 }
 
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  createdAt?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "model";
