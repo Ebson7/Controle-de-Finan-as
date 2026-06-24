@@ -1,13 +1,6 @@
 import { jsPDF } from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { Transaction, Bill } from "../types";
-
-// Declare module extension to make TypeScript happy with autoTable plugin
-declare module "jspdf" {
-  interface jsPDF {
-    autoTable: any;
-  }
-}
 
 export function exportMonthlyReportToPDF(
   transactions: Transaction[],
@@ -133,7 +126,7 @@ export function exportMonthlyReportToPDF(
   doc.setFontSize(12);
   doc.text("LANCAMENTOS E EXTRATO DE TRANSAÇÕES", 15, 96);
 
-  const txRows = transactions.map((t, idx) => [
+  const txRows = transactions.map((t) => [
     t.date,
     t.description,
     t.category,
@@ -141,20 +134,20 @@ export function exportMonthlyReportToPDF(
     `R$ ${t.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: 101,
     head: [["Data", "Descrição", "Categoria", "Tipo", "Valor"]],
     body: txRows,
     theme: "striped",
     headStyles: {
-      fillColor: primaryColor,
+      fillColor: primaryColor as [number, number, number],
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 9,
       halign: "left"
     },
     bodyStyles: {
-      textColor: textColor,
+      textColor: textColor as [number, number, number],
       fontSize: 8.5
     },
     columnStyles: {
@@ -189,20 +182,20 @@ export function exportMonthlyReportToPDF(
     `R$ ${b.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`
   ]);
 
-  doc.autoTable({
+  autoTable(doc, {
     startY: billsStartY + 5,
     head: [["Nome da Conta / Boleto", "Vencimento", "Estado", "Mensal?", "Valor"]],
     body: billsRows,
     theme: "striped",
     headStyles: {
-      fillColor: accentColor,
+      fillColor: accentColor as [number, number, number],
       textColor: [255, 255, 255],
       fontStyle: "bold",
       fontSize: 9,
       halign: "left"
     },
     bodyStyles: {
-      textColor: textColor,
+      textColor: textColor as [number, number, number],
       fontSize: 8.5
     },
     columnStyles: {
