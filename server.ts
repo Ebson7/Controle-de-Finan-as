@@ -29,20 +29,30 @@ const DB_FILE = path.join(process.cwd(), "database.json");
 
 const DEFAULT_DB = {
   users: [
-    { id: "u1", name: "User Admin", email: "ebsonsilva7@gmail.com", passwordHash: "123456", createdAt: new Date().toISOString() }
+    { id: "u1", name: "User Admin", email: "ebsonsilva7@gmail.com", passwordHash: "123456", createdAt: new Date().toISOString() },
+    { id: "u2", name: "Bruna Chaves", email: "bruna.chaves", passwordHash: "123456", createdAt: new Date().toISOString() },
+    { id: "u3", name: "Bruna Chaves", email: "bruna.chaves@gmail.com", passwordHash: "123456", createdAt: new Date().toISOString() }
   ],
   transactions: [
     { id: "t1", userId: "u1", description: "Salário Mensal", amount: 5500.00, type: "income", category: "Salário", date: new Date().toISOString().split('T')[0] },
     { id: "t2", userId: "u1", description: "Supermercado Carrefour", amount: 480.50, type: "expense", category: "Alimentação", date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
     { id: "t3", userId: "u1", description: "Posto Shell Combustível", amount: 180.00, type: "expense", category: "Transporte", date: new Date(Date.now() - 86400000).toISOString().split('T')[0] },
     { id: "t4", userId: "u1", description: "Jantar Pizzaria", amount: 120.00, type: "expense", category: "Lazer", date: new Date().toISOString().split('T')[0] },
-    { id: "t5", userId: "u1", description: "Internet Banda Larga", amount: 120.00, type: "expense", category: "Moradia", date: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0] }
+    { id: "t5", userId: "u1", description: "Internet Banda Larga", amount: 120.00, type: "expense", category: "Moradia", date: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0] },
+    { id: "t_b1", userId: "u2", description: "Salário Mensal", amount: 6500.00, type: "income", category: "Salário", date: new Date().toISOString().split('T')[0] },
+    { id: "t_b2", userId: "u2", description: "Supermercado Pão de Açúcar", amount: 550.00, type: "expense", category: "Alimentação", date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] },
+    { id: "t_b3", userId: "u2", description: "Academia SmartFit", amount: 110.00, type: "expense", category: "Lazer", date: new Date(Date.now() - 86400000 * 5).toISOString().split('T')[0] },
+    { id: "t_b4", userId: "u3", description: "Salário Mensal", amount: 6500.00, type: "income", category: "Salário", date: new Date().toISOString().split('T')[0] },
+    { id: "t_b5", userId: "u3", description: "Supermercado Pão de Açúcar", amount: 550.00, type: "expense", category: "Alimentação", date: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0] }
   ],
   bills: [
     { id: "b1", userId: "u1", name: "Aluguel", amount: 1500.00, dueDate: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0], paid: false, recurring: true },
     { id: "b2", userId: "u1", name: "Conta de Energia Coelba", amount: 220.50, dueDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], paid: false, recurring: true },
     { id: "b3", userId: "u1", name: "Assinatura Netflix", amount: 55.90, dueDate: new Date(Date.now() + 86400000 * 12).toISOString().split('T')[0], paid: false, recurring: true },
-    { id: "b4", userId: "u1", name: "Internet Banda Larga", amount: 120.00, dueDate: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0], paid: true, recurring: true }
+    { id: "b4", userId: "u1", name: "Internet Banda Larga", amount: 120.00, dueDate: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0], paid: true, recurring: true },
+    { id: "b_b1", userId: "u2", name: "Aluguel Apartamento", amount: 1800.00, dueDate: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0], paid: false, recurring: true },
+    { id: "b_b2", userId: "u2", name: "Conta de Luz", amount: 150.00, dueDate: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0], paid: false, recurring: true },
+    { id: "b_b3", userId: "u3", name: "Aluguel Apartamento", amount: 1800.00, dueDate: new Date(Date.now() + 86400000 * 10).toISOString().split('T')[0], paid: false, recurring: true }
   ],
   monthlyBudget: 3000,
   categoryBudgets: [
@@ -66,6 +76,45 @@ function readDatabase() {
     if (!parsed.users) {
       parsed.users = [...DEFAULT_DB.users];
     }
+    
+    // Inject default users if they are missing
+    let updated = false;
+    DEFAULT_DB.users.forEach((defUser) => {
+      const exists = parsed.users.some((u: any) => u.email.toLowerCase().trim() === defUser.email.toLowerCase().trim());
+      if (!exists) {
+        parsed.users.push(defUser);
+        updated = true;
+      }
+    });
+
+    // Inject default transactions if they are missing
+    if (!parsed.transactions) {
+      parsed.transactions = [];
+    }
+    DEFAULT_DB.transactions.forEach((defTx) => {
+      const exists = parsed.transactions.some((t: any) => t.id === defTx.id);
+      if (!exists) {
+        parsed.transactions.push(defTx);
+        updated = true;
+      }
+    });
+
+    // Inject default bills if they are missing
+    if (!parsed.bills) {
+      parsed.bills = [];
+    }
+    DEFAULT_DB.bills.forEach((defBill) => {
+      const exists = parsed.bills.some((b: any) => b.id === defBill.id);
+      if (!exists) {
+        parsed.bills.push(defBill);
+        updated = true;
+      }
+    });
+
+    if (updated) {
+      fs.writeFileSync(DB_FILE, JSON.stringify(parsed, null, 2), "utf-8");
+    }
+
     return parsed;
   } catch (err) {
     console.error("Erro ao ler banco de dados JSON:", err);

@@ -21,7 +21,7 @@ interface LoginProps {
 export default function Login({ onLoginSuccess }: LoginProps) {
   const [isLogin, setIsLogin] = useState(true);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("ebsonsilva7@gmail.com"); // Pre-fill with the developer's email
+  const [email, setEmail] = useState("bruna.chaves"); // Pre-fill with Bruna's username
   const [password, setPassword] = useState("123456"); // Pre-fill with default test password
   const [showPassword, setShowPassword] = useState(false);
   
@@ -76,7 +76,9 @@ export default function Login({ onLoginSuccess }: LoginProps) {
       
       const localUsersStr = localStorage.getItem("local_users");
       let localUsers = [
-        { id: "u1", name: "User Admin", email: "ebsonsilva7@gmail.com", passwordHash: "123456", createdAt: new Date().toISOString() }
+        { id: "u1", name: "User Admin", email: "ebsonsilva7@gmail.com", passwordHash: "123456", createdAt: new Date().toISOString() },
+        { id: "u2", name: "Bruna Chaves", email: "bruna.chaves", passwordHash: "123456", createdAt: new Date().toISOString() },
+        { id: "u3", name: "Bruna Chaves", email: "bruna.chaves@gmail.com", passwordHash: "123456", createdAt: new Date().toISOString() }
       ];
       if (localUsersStr) {
         try {
@@ -150,7 +152,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
   };
 
   const handleUseCredentials = () => {
-    setEmail("ebsonsilva7@gmail.com");
+    setEmail("bruna.chaves");
     setPassword("123456");
     setIsLogin(true);
   };
@@ -255,13 +257,13 @@ export default function Login({ onLoginSuccess }: LoginProps) {
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Endereço de Email</label>
+            <label className="block text-xs font-semibold text-slate-400 mb-1.5">Endereço de Email ou Usuário</label>
             <div className="relative">
               <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-500" />
               <input
-                type="email"
+                type="text"
                 required
-                placeholder="exemplo@email.com"
+                placeholder="bruna.chaves ou seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 placeholder-slate-500"
