@@ -94,7 +94,12 @@ export default function App() {
     const loadFromDatabase = async () => {
       try {
         const response = await fetch(`/api/db?userId=${currentUser.id}`);
-        if (!response.ok) throw new Error("Database offline");
+        
+        const contentType = response.headers.get("content-type");
+        if (!response.ok || !contentType || !contentType.includes("application/json")) {
+          throw new Error("Database offline or returned invalid response content type");
+        }
+
         const data = await response.json();
         
         if (data.transactions) setTransactions(data.transactions);
