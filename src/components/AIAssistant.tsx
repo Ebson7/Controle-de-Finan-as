@@ -65,8 +65,12 @@ export default function AIAssistant({ transactions, bills, monthlyBudget }: AIAs
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao conectar com o serviço de IA.");
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Erro ao conectar com o serviço de IA.");
+        }
+        throw new Error(`Erro do servidor (Status ${response.status}).`);
       }
 
       const data = await response.json();
@@ -128,8 +132,12 @@ export default function AIAssistant({ transactions, bills, monthlyBudget }: AIAs
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Erro ao responder sua dúvida.");
+        const contentType = response.headers.get("content-type");
+        if (contentType && contentType.includes("application/json")) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Erro ao responder sua dúvida.");
+        }
+        throw new Error(`Erro do servidor (Status ${response.status}).`);
       }
 
       const data = await response.json();

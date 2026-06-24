@@ -13,6 +13,17 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Request logging middleware for debugging
+app.use((req, res, next) => {
+  try {
+    const logMsg = `[${new Date().toISOString()}] ${req.method} ${req.url} - Headers: ${JSON.stringify(req.headers)} - Body: ${JSON.stringify(req.body || {})}\n`;
+    fs.appendFileSync(path.join(process.cwd(), "requests.log"), logMsg, "utf-8");
+  } catch (err) {
+    console.error("Error writing to requests.log:", err);
+  }
+  next();
+});
+
 // Database Configuration & Initialization
 const DB_FILE = path.join(process.cwd(), "database.json");
 
@@ -141,6 +152,27 @@ app.post("/api/auth/login", (req, res) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: "Erro ao autenticar usuário: " + err.message });
+  }
+});
+
+// Server Diagnostics Endpoint
+app.get("/api/logs", (req, res) => {
+  try {
+    const logFile = path.join(process.cwd(), "requests.log");
+    let logs = "";
+    if (fs.existsSync(logFile)) {
+      logs = fs.readFileSync(logFile, "utf-8");
+    }
+    res.json({
+      success: true,
+      env: process.env.NODE_ENV,
+      cwd: process.cwd(),
+      dbExists: fs.existsSync(path.join(process.cwd(), "database.json")),
+      dbFile: path.join(process.cwd(), "database.json"),
+      logs: logs.split("\n").filter(Boolean).slice(-50) // Last 50 requests
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to read logs: " + err.message });
   }
 });
 

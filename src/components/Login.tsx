@@ -45,6 +45,12 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         body: JSON.stringify(payload)
       });
 
+      // Check if response is JSON to handle HTML error pages gracefully
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error(`Erro do servidor (Status ${response.status}). O servidor retornou uma página inválida. Por favor, recarregue a página.`);
+      }
+
       const data = await response.json();
       
       if (!response.ok) {
